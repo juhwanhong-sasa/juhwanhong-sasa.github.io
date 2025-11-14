@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>오토마타 제작 기술 허브</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #e5e7eb;
+            color: #2c3e50;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 400px;
+            max-height: 500px;
+        }
+        
+        .main-nav-btn {
+            @apply px-4 py-2 text-lg font-medium rounded-t-lg transition-all duration-200;
+            @apply hover:bg-gray-400;
+        }
+        .main-nav-btn.active {
+            @apply shadow-md relative z-10 mb-[-2px] font-bold;
+            transform: scale(1.05); /* Raw CSS transform for "pop" effect */
+            @apply hover:bg-white; 
+        }
+
+        .sub-nav-btn {
+            @apply px-4 py-2 font-medium rounded-md duration-200;
+            transition: background-color, color, box-shadow, transform;
+            @apply hover:bg-gray-100;
+        }
+        .sub-nav-btn.active {
+            @apply shadow-md font-bold;
+            transform: scale(1.05); /* Raw CSS transform */
+            @apply hover:bg-blue-700;
+        }
+
+        .filter-btn {
+            @apply px-3 py-1 text-sm font-medium rounded-md duration-200;
+            transition: background-color, color, transform, box-shadow;
+            @apply hover:bg-gray-100;
+        }
+        .filter-btn.active {
+            @apply shadow-md font-bold;
+            transform: scale(1.05); /* Raw CSS transform */
+            @apply hover:bg-blue-700;
+        }
+
+        .view { display: none; }
+        .view.active { display: block; }
+        .sub-view { display: none; }
+        .sub-view.active { display: block; }
+
+        .automata-card {
+            @apply bg-white p-4 rounded-lg shadow-md transition-transform duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer;
+        }
+        .wiring-diagram {
+            @apply bg-gray-50 p-4 rounded-lg border border-gray-300;
+        }
+        .wire-path {
+            @apply border-gray-500 relative;
+        }
+        .wire-path::before {
+            content: '';
+            position: absolute;
+            border-style: solid;
+        }
+        .dpdt-pin {
+            @apply w-4 h-4 bg-gray-400 rounded-full border-2 border-gray-600;
+        }
+        .wire-label {
+            @apply text-xs font-semibold p-1 rounded;
+        }
+        .wire-plus {
+            @apply bg-red-100 text-red-700 border border-red-300;
+        }
+        .wire-minus {
+            @apply bg-blue-100 text-blue-700 border border-blue-300;
+        }
+        .wire-motor {
+            @apply bg-green-100 text-green-700 border border-green-300;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <header class="sticky top-0 z-10 bg-gray-100 shadow-md">
+        <div class="container mx-auto px-4 py-2">
+            <h1 class="text-3xl font-bold text-blue-700">오토마타 제작 기술 허브</h1>
+        </div>
+        <nav id="mainNav" class="container mx-auto px-4 flex space-x-2">
+            <button class="main-nav-btn active flex items-center gap-2" data-view="homeView">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 9.414V17a1 1 0 001 1h2a1 1 0 001-1v-2.5a.5.5 0 01.5-.5h3a.5.5 0 01.5.5V17a1 1 0 001 1h2a1 1 0 001-1V9.414l.293.293a1 1 0 001.414-1.414l-7-7z" />
+                </svg>
+                <span>홈</span>
+            </button>
+            <button class="main-nav-btn flex items-center gap-2" data-view="automataView">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" />
+                </svg>
+                <span>제작기술 30선</span>
+            </button>
+            <button class="main-nav-btn flex items-center gap-2" data-view="motorView">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5.268l4.067 4.067a1 1 0 01-.633 1.732H13V17a1 1 0 01-1 1H8a1 1 0 01-1-1v-4.933H4.566a1 1 0 01-.633-1.732L8 7.268V2a1 1 0 011.3-.954l2-1zM8.707 11.293a1 1 0 01-1.414 0L4.707 8.707a1 1 0 011.414-1.414L8 9.172V16h4V9.172l1.879-1.879a1 1 0 011.414 1.414L12.707 11.293a1 1 0 01-1.414 0L10 10l-1.293 1.293z" clip-rule="evenodd" />
+                </svg>
+                <span>모터 제어</span>
+            </button>
+            <button class="main-nav-btn flex items-center gap-2" data-view="checklistView">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                </svg>
+                <span>실전 체크리스트</span>
+            </button>
+        </nav>
+    </header>
+
+    <main class="container mx-auto p-6 bg-white shadow-xl rounded-b-lg border-t-2 border-gray-300">
+        
+        <div id="homeView" class="view active">
+            <h2 class="text-2xl font-bold mb-4">환영합니다, 제작자 여러분.</h2>
+            <p class="mb-6">이 허브는 오토마타 제작에 필요한 모든 기술 자료를 통합한 상호작용형 매뉴얼입니다. 상단 탭을 이용해 원하는 정보로 즉시 이동할 수 있습니다.</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-gray-50 border border-gray-200 p-6 rounded-lg shadow-lg text-center">
+                    <span class="text-5xl font-bold text-blue-600">30</span>
+                    <p class="text-lg font-medium text-gray-700 mt-2">핵심 제작 기술</p>
+                </div>
+                <div class="bg-gray-50 border border-gray-200 p-6 rounded-lg shadow-lg text-center">
+                    <span class="text-5xl font-bold text-blue-600">3</span>
+                    <p class="text-lg font-medium text-gray-700 mt-2">핵심 모터 유형</p>
+                </div>
+                <div class="bg-gray-50 border border-gray-200 p-6 rounded-lg shadow-lg text-center">
+                    <span class="text-5xl font-bold text-blue-600">45+</span>
+                    <p class="text-lg font-medium text-gray-700 mt-2">안전 &amp; 제작 점검</p>
+                </div>
+            </div>
+
+            <div class="bg-gray-50 border border-gray-200 p-6 rounded-lg shadow-lg">
+                <h3 class="text-xl font-bold mb-4">핵심 모터 3유형 비교</h3>
+                <p class="text-gray-600 mb-4">오토마타의 '심장'을 선택하는 것은 작품의 성격을 결정합니다. 각 모터의 특성을 비교해보고, 당신의 기획에 가장 적합한 모터를 선택하십시오.</p>
+                <div class="chart-container">
+                    <canvas id="motorRadarChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div id="automataView" class="view">
+            <h2 class="text-2xl font-bold mb-4">오토마타 제작 기술 30선</h2>
+            <p class="text-gray-600 mb-6">오토마타 제작은 10개의 단계로 나뉘며, 총 30개의 핵심 기술로 구성됩니다. 아래 필터를 사용해 원하는 기술을 빠르게 찾아보십시오.</p>
+            
+            <div id="automataFilter" class="flex flex-wrap gap-2 mb-6 bg-gray-100 p-3 rounded-lg">
+                <button class="filter-btn active" data-category="all">전체 (30)</button>
+                <button class="filter-btn" data-category="plan">1. 기획 (1-3)</button>
+                <button class="filter-btn" data-category="frame">2. 뼈대 (4-6)</button>
+                <button class="filter-btn" data-category="power">3. 동력 전달 (7-12)</button>
+                <button class="filter-btn" data-category="motion">4. 운동 창조 (13-18)</button>
+                <button class="filter-btn" data-category="actuator">5. 동력원 (19-21)</button>
+                <button class="filter-btn" data-category="fab">6. 제작 (22-24)</button>
+                <button class="filter-btn" data-category="debug">7. 디버깅 (25-27)</button>
+                <button class="filter-btn" data-category="finish">8. 마감 (28-30)</button>
+            </div>
+
+            <div id="automataGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Data for modals is stored in data-modal-body attributes -->
+                <div class="automata-card" data-category="plan"
+                     data-modal-body="오토마타는 '스스로 움직이는 기계'를 의미합니다. 미리 설계된 기계적 장치(주로 캠, 기어, 링크)에 의해 정해진 순서대로 움직임을 반복하는 기계 인형이나 장치를 말합니다.<br><br><strong class='font-semibold text-gray-700'>1. 자크 드 보캉송 '소화하는 오리' (1739)</strong><br>현상: 모이를 쪼아 먹고, 소화시켜 배설하는 동작을 구현했습니다.<br>실전 분석: '먹는 동작', '소화(대기) 시간', '배설 동작'이라는 '시퀀스(Sequence)'가 존재합니다. 정교하게 설계된 여러 개의 캠과 타이밍 장치가 연동되어야 가능했습니다.<br><br><strong class='font-semibold text-gray-700'>2. 피에르 자케 드로 '작가' (1770년대)</strong><br>현상: 약 40개의 글자를 조합하여 미리 프로그래밍된 문장을 썼습니다.<br>실전 분석: 핵심은 '프로그래밍이 가능한 캠'입니다. 캠의 형태 자체가 3차원 공간의 좌표 '데이터'인 셈입니다.<br><br><strong class='font-semibold text-blue-600 mt-2 block'>[주요 팁]</strong> '신기하다'에서 그치는 것이 아니라, &quot;이 움직임을 어떻게 쪼개고, 어떤 매커니즘으로 변환할까?&quot;를 고민하는 것이 이 기술의 핵심입니다.">
+                    <h4 class="text-lg font-bold text-blue-700">기술 1: 사례 분석</h4>
+                    <p class="text-sm text-gray-600">역사적 오토마타(예: 자케 드로의 '작가')를 분석하여 '시퀀스'와 '캠'의 중요성을 이해합니다.</p>
+                </div>
+                <div class="automata-card" data-category="plan"
+                     data-modal-body="대부분의 초심자들이 실패하는 지점입니다. '이야기(Story)'가 먼저고, 매커니즘은 그 이야기를 구현하기 위한 '도구'일 뿐입니다.<br><br><strong class='font-semibold text-gray-700'>1. 아이디어 스케치 (무엇을 만들까?)</strong><br>&quot;새가 모이를 쪼는 모습&quot;처럼 간단한 '한 문장'으로 정의해야 합니다.<br><br><strong class='font-semibold text-gray-700'>2. 스토리보드 (어떤 순서로 움직일까?)</strong><br>'한 문장'을 4~8컷의 만화처럼 그려봅니다. (예: 1.새가 고개를 듦 2.고개를 숙여 쏨 3.꼬리가 올라감 4.고개를 다시 듦)<br><br><strong class='font-semibold text-gray-700'>3. 모션 스케치 (어떻게 움직일까?)</strong><br>움직이는 부품만 단순한 선(뼈대)으로 그리는 '키네마틱 스케치'를 작성합니다. 여기서 '고정점(Pivot)'과 '움직이는 부분(Link)'을 명확히 구분해야 합니다.">
+                    <h4 class="text-lg font-bold text-blue-700">기술 2: 움직임 기획</h4>
+                    <p class="text-sm text-gray-600">'이야기'를 '스토리보드'와 '모션 스케치'로 구체화합니다. '이야기'가 '매커니즘'보다 항상 먼저입니다.</p>
+                </div>
+                <div class="automata-card" data-category="plan"
+                     data-modal-body="모든 오토마타는 '동력원'의 '단순한 연속 회전 운동'을 '기획한 움직임'(왕복, 간헐 등)으로 바꾸는 장치입니다. 그 핵심 도구가 이 4가지입니다.<br><br><ul class='list-disc list-inside space-y-2'><li><strong class='font-semibold text-gray-700'>1. 기어 (Gear):</strong> 힘과 속도의 조율사. 회전 운동을 전달하며 속도(Speed)와 힘(Torque)을 변환합니다.</li><li><strong class='font-semibold text-gray-700'>2. 캠 (Cam):</strong> 움직임의 프로그래머. 연속 회전 운동을 불규칙하거나 복잡한 왕복 운동으로 변환합니다. 캠의 '프로파일(윤곽선)' 자체가 프로그램 코드입니다.</li><li><strong class='font-semibold text-gray-700'>3. 링크 (Linkage):</strong> 궤적의 예술가. 여러 개의 막대를 연결하여 복잡한 궤적 운동으로 변환합니다.</li><li><strong class='font-semibold text-gray-700'>4. 래칫 (Ratchet):</strong> 시간의 통제자. 회전을 한쪽 방향으로만 허용하거나, '간헐 운동(Intermittent Motion)'으로 변환합니다.</li></ul>">
+                    <h4 class="text-lg font-bold text-blue-700">기술 3: 4대 매커니즘 개요</h4>
+                    <p class="text-sm text-gray-600">회전 운동을 변환하는 4가지 도구(기어, 캠, 링크, 래칫)의 기본 기능을 이해합니다.</p>
+                </div>
+                <div class="automata-card" data-category="frame"
+                     data-modal-body="프레임의 첫 번째 임무는 '강성 (Stiffness)' 확보입니다. 즉, 내부 매커니즘이 작동할 때 '변형되거나 뒤틀리지 않고' 모든 부품을 제자리에 붙잡아 두는 것입니다.<br><br><strong class='font-semibold text-gray-700'>1. 프레임의 형태:</strong><br><ul class='list-disc list-inside space-y-1'><li><strong>상자형(Box Frame):</strong> (권장) 최소 양쪽 면에서 축을 지지하는 닫힌 구조. 매우 견고하며 정밀한 배치가 가능합니다.</li><li><strong>개방형(Open Frame):</strong> 한쪽 면만 있는 구조. 축이 휘거나 처지기 쉬워 간단한 작품에만 사용합니다.</li></ul><br><strong class='font-semibold text-gray-700'>2. 재료의 선정:</strong><br><ul class='list-disc list-inside space-y-1'><li><strong>목재 (MDF, 합판):</strong> 가공이 쉽고 저렴합니다. MDF는 밀도가 균일해 정밀 가공에 유리합니다.</li><li><strong>아크릴 (Plexiglass):</strong> 레이저 커터로 정밀 가공 가능. 내부가 보여 교육용으로 훌륭하나 충격에 약합니다.</li></ul><br><strong class='font-semibold text-blue-600 mt-2 block'>[주요 팁]</strong> 첫 작품은 'MDF'나 '아크릴'을 이용한 '상자형 프레임'으로 시작하는 것이 좋습니다.">
+                    <h4 class="text-lg font-bold text-blue-700">기술 4: 견고한 프레임</h4>
+                    <p class="text-sm text-gray-600">'상자형(Box Frame)' 구조를 권장합니다. 축을 양쪽에서 지지하여 강성을 확보하고 뒤틀림을 방지합니다.</p>
+                </div>
+                <div class="automata-card" data-category="frame"
+                     data-modal-body="축(Shaft)은 동력을 전달하는 '혈관'이고, 베어링(Bearing)은 그 혈관이 마찰 없이 부드럽게 흐르도록 돕는 '윤활막'입니다.<br><br><strong class='font-semibold text-gray-700'>1. 구동축(Shaft) 선정:</strong><br>주로 '환봉(Round Rod)' 형태의 강철이나 스테인리스강을 사용합니다. '직진도'가 생명입니다. 축이 휘면 진동을 유발합니다.<br><br><strong class='font-semibold text-gray-700'>2. 베어링(Bearing)의 필요성:</strong><br>프레임에 구멍만 뚫어 축을 끼우지 않습니다. 프레임(목재)과 축(금속)이 직접 맞닿으면 마찰 저항이 크고 구멍이 금방 마모됩니다.<br><ul class='list-disc list-inside space-y-1 mt-1'><li><strong>볼 베어링(Ball Bearing):</strong> (이상적) 구름 마찰을 이용해 마찰 저항이 거의 없습니다.</li><li><strong>슬리브 베어링 (부싱, Bushing):</strong> (대안) 황동이나 플라스틱 원통을 박아 '면' 마찰로 지지합니다. 없는 것보다 훨씬 낫습니다.</li></ul><br><strong class='font-semibold text-blue-600 mt-2 block'>[주요 팁]</strong> 베어링은 사치가 아니라 필수입니다. 특히 주 동력축에는 반드시 '볼 베어링'을 사용하여 마찰 손실을 최소화해야 합니다.">
+                    <h4 class="text-lg font-bold text-blue-700">기술 5: 축과 베어링</h4>
+                    <p class="text-sm text-gray-600">마찰은 적입니다. 주 구동축에는 '볼 베어링'이나 '부싱'을 사용하는 것이 사치가 아닌 필수입니다.</p>
+                </div>
+                <div class="automata-card" data-category="frame"
+                     data-modal-body="프레임 제작에서 가장 중요한 실전 기술입니다. 기계공학에서는 이를 '기하공차(Geometric Tolerance)' 관리라고 부릅니다.<br><br><strong class='font-semibold text-gray-700'>1. 직각도 (Perpendicularity):</strong><br>문제: 드릴이 조금이라도 기울어지면 어떻게 될까요?<br>결과: 축이 기울어져 삽입되고, 반대쪽 구멍과 정렬되지 않아 축이 '끼어서' 아예 돌아가지 않거나 엄청난 저항이 발생합니다.<br>해결: 손드릴은 절대 금물입니다. 반드시 **'드릴 프레스(Drill Press)'**나 '수직 드릴링 지그'를 사용해 프레임 면과 드릴 비트가 완벽한 90도를 이루도록 뚫어야 합니다.<br><br><strong class='font-semibold text-gray-700'>2. 평행도 (Parallelism):</strong><br>문제: 두 기어가 꽂힌 축이 서로 평행하지 않다면 어떻게 될까요?<br>결과: 기어 이빨이 한쪽만 닿게 되어(편마모), 소음이 발생하고 효율이 급격히 떨어지며 결국 기어가 마모되거나 깨져버립니다.<br>해결: 두 축의 구멍 좌표를 정확히 측정하고 표시해야 합니다. '센터 펀치'로 위치를 표시하고 드릴 프레스를 사용해야 합니다.<br><br><strong class='font-semibold text-blue-600 mt-2 block'>[주요 팁]</strong> '대충 이쯤...'이라는 생각은 오작동의 지름길입니다. 모든 구멍의 위치는 **'버니어 캘리퍼스'**로 측정하고, **'드릴 프레스'**로 뚫는 것을 원칙으로 삼아야 합니다.">
+                    <h4 class="text-lg font-bold text-blue-700">기술 6: 정밀 드릴링</h4>
+                    <p class="text-sm text-gray-600">'드릴 프레스'를 사용해 프레임과 '직각'으로 구멍을 뚫어야 합니다. 기울어진 축은 마찰과 걸림의 주범입니다.</p>
+                </div>
+                <div class="automata-card" data-category="power"
+                     data-modal-body="단순히 기어를 맞물리는 것은 기술이 아닙니다. '왜' 이 기어를 쓰는지, '어떤' 비율로 조합할지 계산하는 것이 실전 기술입니다.<br><br><strong class='font-semibold text-gray-700'>1. 기어비 (Gear Ratio, i) 계산:</strong><br><ul class='list-disc list-inside space-y-1'><li>구동 기어 (힘 주는 쪽): 잇수 T1</li><li>피동 기어 (힘 받는 쪽): 잇수 T2</li><li><strong>계산식 : i = T2 / T1</strong></li></ul><br><strong class='font-semibold text-gray-700'>2. 속도와 토크의 변환:</strong><br><ul class='list-disc list-inside space-y-1'><li>속도(Speed): 출력 속도 = (입력 속도) / i</li><li>토크(Torque, 힘): 출력 토크 = (입력 토크) * i</li></ul><br><strong class='font-semibold text-gray-700'>[실전 사례] 감속 (i > 1):</strong> (T1=10, T2=50)<br>i = 50/10 = 5 (5:1 감속). 속도는 1/5로 줄지만, 힘(토크)은 5배로 강력해집니다.<br><br><strong class='font-semibold text-blue-600 mt-2 block'>[주요 팁]</strong> 대부분의 오토마타는 '감속'을 기본으로 합니다. 모터의 빠른 회전을 느리고 강력한 움직임으로 바꾸는 것이 핵심입니다.">
+                    <h4 class="text-lg font-bold text-blue-700">기술 7: 기어비 (Gear Ratio)</h4>
+                    <p class="text-sm text-gray-600">기어 잇수(T)로 속도와 힘(토크)을 변환합니다. (i = T2/T1). 대부분 '감속'(속도↓, 힘↑)을 기본으로 합니다.</p>
+                </div>
+                <div class="automata-card" data-category="power"
+                     data-modal-body="평기어(스퍼 기어)는 가장 기본적이고 널리 쓰이는 기어입니다.<br><br><strong class='font-semibold text-gray-700'>1. 기능:</strong><br>서로 '평행한(Parallel)' 두 축 사이에서 동력을 전달합니다.<br><br><strong class='font-semibold text-gray-700'>2. 핵심 변수: 중심 거리 (Center Distance, C):</strong><br>두 축이 완벽히 평행해야 합니다 ([기술 6: 평행도]). 이 거리가 너무 가깝거나 멀면 마찰, 소음, 마모가 발생합니다.<br><ul class='list-disc list-inside space-y-1'><li>가까우면: 마찰이 극심해져 돌아가지 않습니다 (Jamming).</li><li>멀면: 이빨 끝만 걸쳐 덜컥거립니다 (Backlash).</li></ul><br><strong class='font-semibold text-gray-700'>3. 적정 중심 거리 (C):</strong><br>C = (모듈 * (T1 + T2)) / 2<br><br><strong class='font-semibold text-blue-600 mt-2 block'>[주요 팁]</strong> 평기어는 '정확한 중심 거리'가 생명입니다. 프레임 설계 시, 이 공식을 바탕으로 축의 좌표를 정확히 가공해야 하는 이유입니다.">
+                    <h4 class="text-lg font-bold text-blue-700">기술 8: 평기어 (Spur Gear)</h4>
+                    <p class="text-sm text-gray-600">'평행한' 두 축 사이의 동력을 전달합니다. '중심 거리'의 정확한 계산이 생명입니다.</p>
+                </div>
+                <div class="automata-card" data-category="power"
+                     data-modal-body="동력의 '방향'을 90도로 꺾어야 할 때 사용하는 것이 베벨 기어입니다.<br><br><strong class='font-semibold text-gray-700'>1. 기능:</strong><br>서로 '만나는 (Intersecting)' 두 축 (주로 90도) 사이에서 동력을 전달합니다. 원뿔 모양의 측면에 이빨이 나 있습니다.<br><br><strong class='font-semibold text-gray-700'>2. 2차시와의 연관성:</strong><br>[기술 6: 직각도]가 중요해집니다. 두 축이 정확히 한 평면 위에서 90도로 만나지 않으면, 베벨 기어는 절대로 제대로 맞물리지 않습니다.<br><br><strong class'font-semibold text-gray-700'>3. 실전 적용:</strong><br><ul class='list-disc list-inside space-y-1'><li>수직 모터의 회전력을 수평 캠 축으로 전달할 때.</li><li>수평 핸들을 돌려 수직 축의 인형을 회전시킬 때.</li></ul><br><strong class='font-semibold text-blue-600 mt-2 block'>[주요 팁]</strong> 설치가 평기어보다 까다롭습니다. 두 축의 중심선이 정확히 한 점에서 만나도록 축 방향의 위치까지 정밀하게 고정해야 합니다.">
+                    <h4 class="text-lg font-bold text-blue-700">기술 9: 베벨기어 (Bevel Gear)</h4>
+                    <p class="text-sm text-gray-600">'교차하는' 두 축(주로 90도) 사이의 동력 방향을 바꿉니다. 축의 '직각도'가 중요합니다.</p>
+                </div>
+                <div class="automata-card" data-category="power"
+                     data-modal-body="오토마타에서 '아주 느리고 강력한' 움직임을 구현해야 한다면, 웜기어가 거의 유일한 해답입니다.<br><br><strong class='font-semibold text-gray-700'>1. 구조:</strong><br>나사 형태의 '웜(Worm)'과, 그 나사산과 맞물리는 '웜 휠(Worm Wheel)'로 구성됩니다.<br><br><strong class'font-semibold text-gray-700'>2. 기능 (1) - 큰 감속비 (High Gear Ratio):</strong><br>웜이 1줄 나사(T1=1)이고 웜 휠 잇수가 40개(T2=40)라면, 기어비는 i = 40/1 = 40. 즉, 단 한 쌍으로 40:1이라는 엄청난 감속비를 얻습니다. 힘(토크)은 40배로 증폭됩니다.<br><br><strong class='font-semibold text-gray-700'>3. 기능 (2) - 역구동 방지 (Self-Locking):</strong><br>이것이 핵심입니다. '웜(구동축)'이 '웜 휠(피동축)'을 돌릴 수는 있지만, 반대로 '웜 휠'이 '웜'을 거꾸로 돌릴 수는 없습니다.<br><br><strong class='font-semibold text-blue-600 mt-2 block'>[실전 적용]</strong> 무거운 팔을 들어 올린 채로 멈춰야 할 때. 모터 전원을 꺼도 웜기어가 스스로 잠겨, 팔이 그 위치에 그대로 고정됩니다.">
+                    <h4 class="text-lg font-bold text-blue-700">기술 10: 웜기어 (Worm Gear)</h4>
+                    <p class="text-sm text-gray-600">단 한 쌍으로 '높은 감속비'와 '역구동 방지(Self-Locking)'를 동시에 구현합니다. 무거운 것을 들어 올릴 때 필수입니다.</p>
+                </div>
+                <div class="automata-card" data-category="power"
+                     data-modal-body="기어는 정밀하지만, 축간 거리가 멀거나 두 축이 평행하지 않으면 사용하기 어렵습니다. 이때 '벨트'와 '풀리'가 훌륭한 대안이 됩니다.<br><br><strong class='font-semibold text-gray-700'>1. 구조:</strong><br>바퀴 형태의 '풀리'와, 그 풀리를 연결하는 '벨트(고무벨트, 타이밍 벨트 등)'로 구성됩니다.<br><br><strong class'font-semibold text-gray-700'>2. 장점:</strong><br><ul class='list-disc list-inside space-y-1'><li><strong>거리의 유연성:</strong> 두 축 사이의 거리가 멀어도 쉽게 동력을 전달.</li><li><strong>소음 감소:</strong> 고무나 우레탄 벨트를 사용하므로 작동이 매우 조용합니다.</li><li><strong>충격 흡수 (Slippage):</strong> 갑작스러운 부하가 걸리면 벨트가 '미끄러져' 매커니즘을 보호 (타이밍 벨트 제외).</li></ul><br><strong class='font-semibold text-gray-700'>3. 실전 적용: 타이밍 벨트 (Timing Belt)</strong><br>미끄러짐을 방지하기 위해, 벨트와 풀리에 기어 이빨 (Tooth)을 만든 것입니다. 기어의 '정확성'과 벨트의 '유연성'을 모두 갖춘 훌륭한 부품입니다.<br><br><strong class='font-semibold text-blue-600 mt-2 block'>[주요 팁]</strong> 두 축 간의 거리가 멀거나, 여러 개의 축을 '하나의 모터'로 동시에 돌리고자 할 때 매우 유용합니다.">
+                    <h4 class="text-lg font-bold text-blue-700">기술 11: 풀리와 벨트</h4>
+                    <p class="text-sm text-gray-600">'거리가 먼' 두 축을 연결하거나 소음을 줄일 때 사용합니다. '타이밍 벨트'는 미끄러짐을 방지합니다.</p>
+                </div>
+                <div class="automata-card" data-category="power"
+                     data-modal-body="오토마타에 '시간'의 개념을 도입하는 기술입니다. 연속적인 움직임을 '절제된' 움직임으로 바꾸는 장치입니다.<br><br><strong class='font-semibold text-gray-700'>1. 구조:</strong><br>톱니바퀴 형태의 '래칫휠 (Ratchet Wheel)'과, 그 이빨에 걸리는 '폴(Pawl)'이라는 작은 걸쇠로 구성됩니다.<br><br><strong class'font-semibold text-gray-700'>2. 기능 (1) - 단방향 운동 (One-way Motion):</strong><br>한쪽 방향으로는 폴이 이빨을 타고 넘어가며 '딸깍' 회전하지만, 반대 방향으로는 폴이 이빨에 걸려 절대 돌아가지 않습니다.<br>실전 적용: 핸드 크랭크의 '역회전 방지 장치'.<br><br><strong class'font-semibold text-gray-700'>3. 기능 (2) - 간헐 운동 (Intermittent Motion):</strong><br>구동축이 '폴'을 앞뒤로 왕복 운동시키면, 폴이 '밀 때'는 래칫 휠을 한 칸 돌리고, '당길 때'는 래칫 휠은 멈춘 채 폴만 돌아옵니다.<br>결과: '연속 회전'이 '회전→ 정지'의 '간헐 운동'으로 변환됩니다.<br>실전 적용: 시계의 초침처럼 1초에 한 칸씩 움직이는 동작.">
+                    <h4 class="text-lg font-bold text-blue-700">기술 12: 래칫 (Ratchet)</h4>
+                    <p class="text-sm text-gray-600">'한쪽 방향'으로만 회전(역회전 방지)하게 하거나, 연속 운동을 '간헐 운동(딸깍)'으로 바꿉니다.</p>
+                </div>
+                <div class="automata-card" data-category="motion"
+                     data-modal-body="'캠'은 단순한 부품이 아닙니다. 그것은 '기계적인 프로그램' 그 자체입니다. 캠의 '윤곽선(Profile)'이 바로 우리가 기획한 움직임의 '명령어'가 됩니다.<br><br><strong class='font-semibold text-gray-700'>1. 기본 구성 요소:</strong><br><ul class='list-disc list-inside space-y-1'><li><strong>캠 (Cam):</strong> 특정 윤곽선(프로파일)을 가지고 회전하는 부품.</li><li><strong>종동자 (Follower):</strong> 캠의 윤곽선에 접촉하여 '밀려나거나', '내려오는' 부품.</li></ul><br><strong class'font-semibold text-gray-700'>2. 동작의 4구간 (1회전 기준):</strong><br>1. <strong>상승 (Rise):</strong> 종동자가 밀려 올라가는 구간.<br>2. <strong>상위 휴지 (Upper Dwell):</strong> 종동자가 가장 높은 위치에서 '멈춰' 있는 구간.<br>3. <strong>하강 (Fall):</strong> 종동자가 다시 내려오는 구간.<br>4. <strong>하위 휴지 (Lower Dwell):</strong> 종동자가 가장 낮은 위치에서 '멈춰' 있는 구간.<br><br><strong class='font-semibold text-blue-600 mt-2 block'>[주요 팁]</strong> &quot;어떤 캠을 쓸까?&quot; 묻기 전에 &quot;어떤 움직임을 원하지?&quot; 자문해야 합니다. '천천히 올라갔다가, 잠시 멈추고, 빠르게 내려오는' 움직임을 원한다면, 정확히 그렇게 생긴 캠 프로파일을 설계하면 되는 것입니다.">
+                    <h4 class="text-lg font-bold text-blue-700">기술 13: 캠 프로파일</h4>
+                    <p class="text-sm text-gray-600">캠의 '윤곽선'은 움직임의 '기계적 프로그램'입니다. '상승-휴지-하강-휴지' 4구간을 설계하는 것이 기초입니다.</p>
+                </div>
+                <div class="automata-card" data-category="motion"
+                     data-modal-body="가장 간단하면서도 널리 쓰이는 캠입니다.<br><br><strong class'font-semibold text-gray-700'>1. 구조:</strong><br>완벽한 '원(Circle)' 형태의 캠입니다.<br><br><strong class='font-semibold text-gray-700'>2. 핵심:</strong><br>원의 '기하학적 중심'과 '회전축 중심'이 일치하지 않습니다. 즉, '편심 (Eccentric)'되어 있다는 뜻입니다.<br><br><strong class'font-semibold text-gray-700'>3. 운동 특성:</strong><br><ul class='list-disc list-inside space-y-1'><li><strong>'휴지(Dwell)' 구간이 없습니다.</strong></li><li>360도 내내 부드럽게 '올라갔다가' '내려오는' 동작을 반복합니다. (정확히는 '사인 곡선(Sine Wave)'과 유사한 움직임입니다.)</li></ul><br><strong class'font-semibold text-blue-600 mt-2 block'>[실전 적용]</strong> 파도가 위아래로 부드럽게 출렁이는 움직임, 또는 동물이 고개를 좌우로 천천히 흔드는 움직임 등 '휴지' 동작 없이, 부드럽고 연속적인 상하/좌우 운동을 원한다면 '편심 캠'이 가장 좋은 선택입니다.">
+                    <h4 class="text-lg font-bold text-blue-700">기술 14: 편심캠 (Eccentric Cam)</h4>
+                    <p class="text-sm text-gray-600">'원' 형태지만 '중심축'이 편심되어 있습니다. '휴지' 구간 없이 부드럽고 연속적인 왕복 운동(사인 곡선)을 만듭니다.</p>
+                </div>
+                <div class="automata-card" data-category="motion"
+                     data-modal-body="'타이밍'과 '낙차'를 극대화한 매우 흥미로운 캠입니다. '드롭 캠 (Drop Cam)'이라고도 부릅니다.<br><br><strong class'font-semibold text-gray-700'>1. 구조:</strong><br>달팽이(Snail) 껍질처럼 반지름이 서서히 증가하다가, 한순간에 '절벽'처럼 뚝 떨어지는 윤곽을 가졌습니다.<br><br><strong class='font-semibold text-gray-700'>2. 운동 특성:</strong><br><ul class='list-disc list-inside space-y-1'><li><strong>느린 상승 (Slow Rise):</strong> 캠이 회전하는 300~350도 구간 동안, 종동자는 '매우 천천히' 밀려 올라갑니다.</li><li><strong>순간 하강 (Sudden Fall):</strong> 종동자가 절벽 구간에 도달하는 순간, 캠 표면이 사라지면서 종동자가 중력에 의해 '순간적으로 쿵!' 하고 떨어집니다.</li></ul><br><strong class'font-semibold text-gray-700'>3. 실전 적용:</strong><br>새가 천천히 고개를 들었다가 순간적으로 '콕!' 쪼는 움직임, 또는 망치가 천천히 들어 올려졌다가 '쾅!' 내리치는 움직임.<br><br><strong class='font-semibold text-blue-600 mt-2 block'>[주의 사항]</strong> 이 캠은 반드시 '정해진 한쪽 방향'으로만 회전해야 합니다. 반대로 돌리면 종동자가 절벽을 거슬러 올라가지 못하고 시스템 전체가 파손될 수 있습니다. ([기술 12: 래칫]으로 역회전 방지 가능).">
+                    <h4 class="text-lg font-bold text-blue-700">기술 15: 스네일 캠 (Snail Cam)</h4>
+                    <p class="text-sm text-gray-600">'느린 상승'과 '순간 하강(절벽)'을 구현합니다. '쾅!' 내리치거나 '콕!' 쪼는 극적인 타이밍을 연출합니다. (역회전 절대 금지)</p>
+                </div>
+                <div class="automata-card" data-category="motion"
+                     data-modal-body="가장 기본적이면서도 강력한 '회전-직선 변환' 장치입니다. 자동차 엔진이나 증기기관차 바퀴에 이 기술이 들어가 있습니다.<br><br><strong class='font-semibold text-gray-700'>1. 구조:</strong><br><ul class='list-disc list-inside space-y-1'><li><strong>크랭크 (Crank):</strong> 회전하는 축에 '편심'되어 연결된 팔(Arm).</li><li><strong>커넥팅 로드 (Connecting Rod):</strong> 크랭크의 끝과 '슬라이더'를 연결하는 막대.</li><li><strong>슬라이더 (Slider):</strong> 정해진 '가이드 레일' 안에서 직선 왕복 운동만 하도록 구속된 부품입니다.</li></ul><br><strong class'font-semibold text-gray-700'>2. 운동 특성:</strong><br>크랭크가 1회전하면, 슬라이더는 가이드 레일 안에서 정확히 1회 왕복 운동을 합니다.<br><br><strong class'font-semibold text-blue-600 mt-2 block'>[실전 적용]</strong> 오토마타에서 '톱질'하는 인형의 팔 움직임, 또는 수평 방향으로 '왔다 갔다' 하며 배경을 바꾸는 장치. [기술 14: 편심 캠]보다 더 큰 힘을 전달해야 하는 직선 운동에 유리합니다.">
+                    <h4 class="text-lg font-bold text-blue-700">기술 16: 크랭크-슬라이더</h4>
+                    <p class="text-sm text-gray-600">'회전 운동'을 '직선 왕복 운동'으로 변환하는 가장 기본적인 장치입니다. (예: 증기기관차 바퀴, 톱질)</p>
+                </div>
+                <div class="automata-card" data-category="motion"
+                     data-modal-body="기계공학에서 가장 흥미로운 매커니즘 중 하나입니다. '4개의 막대'만으로 상상하는 거의 모든 움직임을 만들 수 있기 때문입니다.<br><br><strong class='font-semibold text-gray-700'>1. 구조:</strong><br>1.고정 링크(Frame), 2.구동 링크(Crank), 3.커플러(Coupler, 허공에 떠서 연결), 4.종동 링크(Follower)<br><br><strong class='font-semibold text-gray-700'>2. 핵심: '커플러 (Coupler)'의 움직임</strong><br>이 매커니즘의 핵심은 3번 막대, '커플러'에 있습니다. 커플러 위의 특정 지점(Coupler Point)은 구동 링크가 1회전할 때, 단순한 원이나 직선이 아닌, 매우 복잡하고 유기적인 '궤적 곡선(Coupler Curve)'을 그립니다.<br><br><strong class'font-semibold text-blue-600 mt-2 block'>[실전 적용]</strong> <strong>걷는 동작 (Walking):</strong> 테오 얀센(Theo Jansen)의 '해변의 괴물(Strandbeest)'이 바로 이 4절 링크의 정수입니다. 발이 땅을 딛고(직선), 허공을 들어 올렸다가(곡선) 다시 딛는 복잡한 궤적을 완벽히 구현했습니다. 새의 날갯짓이나 팔을 뻗는 동작에도 응용됩니다.">
+                    <h4 class="text-lg font-bold text-blue-700">기술 17: 4절 링크 (Four-bar)</h4>
+                    <p class="text-sm text-gray-600">4개의 막대 길이 조합만으로 '걷는 동작' 등 복잡한 궤적 곡선(Coupler Curve)을 생성하는, 기계공학의 예술입니다.</p>
+                </div>
+                <div class="automata-card" data-category="motion"
+                     data-modal-body="가장 원시적이면서도 강력한 원리, 바로 '지렛대'입니다.<br><br><strong class='font-semibold text-gray-700'>원리:</strong> (힘점-받침점 거리) * (힘점의 힘) = (작용점-받침점 거리) * (작용점의 힘)<br><br><strong class'font-semibold text-gray-700'>[실전 적용 1] - 힘의 증폭 (1종 지렛대):</strong><br>캠이 미는 곳(힘점)을 받침점에서 멀게 하고, 망치(작용점)를 받침점에 가깝게 배치합니다. 캠의 '작은 움직임과 작은 힘'이 망치의 '큰 움직임과 큰 힘'으로 증폭됩니다.<br><br><strong class='font-semibold text-gray-700'>[실전 적용 2] - 방향 전환 (1종 지렛대):</strong><br>받침점을 중간에 두고, 힘점(캠)이 올라가면 작용점(인형)은 내려가도록 연결합니다.<br><br><strong class='font-semibold text-gray-700'>[실전 적용 3] - 움직임의 증폭 (3종 지렛대):</strong><br>캠의 움직임이 1cm인데 날개가 5cm 움직여야 할 때. 힘은 손해를 보지만, 움직임의 '거리(변위)'가 크게 증폭됩니다.">
+                    <h4 class="text-lg font-bold text-blue-700">기술 18: 레버 (Lever)</h4>
+                    <p class="text-sm text-gray-600">'지렛대 원리'를 이용해, 캠의 '작은 움직임'을 '큰 움직임'으로 증폭시키거나 '방향'을 반대로 바꿉니다.</p>
+                </div>
+                <div class="automata-card" data-category="actuator"
+                     data-modal-body="가장 고전적이고 직관적인 동력원입니다. 전기가 필요 없으며, 관객이 직접 작품에 개입하도록 유도합니다.<br><br><strong class='font-semibold text-gray-700'>1. 핸드 크랭크 (Hand Crank):</strong><br><ul class='list-disc list-inside space-y-1'><li><strong>장점:</strong> 관객이 직접 돌리는 행위를 통해 움직임의 원리를 즉각 체험. 속도 제어가 자유롭고 제작이 간단.</li><li><strong>실전 적용:</strong> 약 3~5cm의 회전 반경이 적절하며, 손잡이 부분은 헛돌도록(Free-spinning) 설계하는 것이 좋습니다.</li></ul><br><strong class'font-semibold text-gray-700'>2. 태엽 (Mainspring):</strong><br><ul class='list-disc list-inside space-y-1'><li><strong>장점:</strong> 전원 없이도 '자동으로' 일정 시간 동안 작동.</li><li><strong>단점:</strong> 태엽이 풀리면서 힘(토크)이 약해지고, 풀리는 속도를 제어하는 '이스케이프먼트'라는 정밀 장치가 필요해 매우 복잡함.</li></ul><br><strong class='font-semibold text-blue-600 mt-2 block'>[주요 팁]</strong> 대부분의 입문용 오토마타는 '핸드 크랭크' 방식을 강력히 추천합니다. 가장 만들기 쉽고, 기계 장치의 움직임을 순수하게 관찰하기에 가장 적합하기 때문입니다.">
+                    <h4 class="text-lg font-bold text-blue-700">기술 19: 핸드 크랭크/태엽</h4>
+                    <p class="text-sm text-gray-600">'아날로그' 동력원입니다. 관객과의 상호작용(크랭크) 또는 전원 없는 자동 작동(태엽)을 구현합니다.</p>
+                </div>
+                <div class="automata-card" data-category="actuator"
+                     data-modal-body="태엽보다 더 오래되고 고전적인 '에너지 저장' 방식입니다. 뻐꾸기시계가 이 원리를 사용합니다.<br><br><strong class'font-semibold text-gray-700'>1. 원리:</strong><br>무거운 '무게추(Weight)'를 줄로 감아 높은 곳에 올리면 '중력 위치 에너지'가 저장됩니다. 이 무게추가 서서히 하강하면서 줄이 감긴 '축(Drum)'을 회전시켜 동력을 얻습니다.<br><br><strong class='font-semibold text-gray-700'>2. 장점:</strong><br><ul class='list-disc list-inside space-y-1'><li><strong>일정한 토크 (Constant Torque):</strong> 태엽과 달리, 무게추는 떨어지는 동안 거의 '일정한 힘'을 제공합니다. 움직임을 일정하게 유지하는 데 유리.</li><li><strong>고전미:</strong> 그 자체로 미적인 요소가 됩니다.</li></ul><br><strong class='font-semibold text-gray-700'>3. 단점:</strong><br>무게추가 하강할 '수직 공간'이 필요하고, 급격히 떨어지는 것을 막을 '제동 장치(Governor)'나 극단적인 감속 장치가 필요합니다.<br><br><strong class='font-semibold text-blue-600 mt-2 block'>[주요 팁]</strong> [기술 10: 웜기어]를 이용해 극단적인 감속을 하면 제동 장치 없이도 매우 느리게 떨어지게 만들 수 있습니다.">
+                    <h4 class="text-lg font-bold text-blue-700">기술 20: 무게추 (Weight)</h4>
+                    <p class="text-sm text-gray-600">'중력 위치 에너지'를 이용한 고전적 동력원입니다. 태엽과 달리 '일정한 힘(토크)'을 제공하는 장점이 있습니다.</p>
+                </div>
+                <div class="automata-card" data-category="actuator"
+                     data-modal-body="오토마타를 '스스로' 움직이게 하는 가장 현실적이고 강력한 방법입니다.<br><br><strong class='font-semibold text-gray-700'>1. 왜 '기어드 (Geared)' 모터인가?</strong><br>일반 DC 모터는 너무 빠르고(수천 RPM) 힘(토크)이 없습니다. '기어드 모터'는 DC 모터에 '감속 기어박스'가 결합된 형태입니다.<br><strong>결과:</strong> 속도는 10~100 RPM 정도로 매우 느려지고, 대신 힘(토크)은 수십 배 강력해져서 오토마타를 돌릴 충분한 힘을 갖게 됩니다.<br><br><strong class='font-semibold text-gray-700'>2. 모터 선정 기준:</strong><br><ul class='list-disc list-inside space-y-1'><li><strong>전압 (Voltage):</strong> 배터리(3V, 5V) 또는 어댑터(12V)를 쓸 것인지 결정합니다.</li><li><strong>RPM (분당 회전수):</strong> 움직임의 '템포'를 결정합니다. (보통 30~60RPM)</li><li><strong>토크 (Torque):</strong> 얼마나 무거운 것을 움직여야 하는가. (입문 단계에서는 표준 토크로도 충분합니다.)</li></ul><br><strong class='font-semibold text-gray-700'>3. 간단한 스위치 제어:</strong><br>'전원 - 스위치 - 모터' 직렬 연결. DPDT 스위치(6핀)로 '정회전/정지/역회전'을 구현할 수도 있습니다.">
+                    <h4 class="text-lg font-bold text-blue-700">기술 21: DC 기어드 모터</h4>
+                    <p class="text-sm text-gray-600">'기어드'가 핵심입니다. '빠른 속도/약한 힘'의 일반 모터를 '느린 속도/강한 힘'으로 바꾼, 오토마타의 표준 심장입니다.</p>
+                </div>
+                <div class="automata-card" data-category="fab"
+                     data-modal-body="오토마타의 '프레임', '기어', '캠' 등 대부분의 '판재형' 부품을 만드는 가장 빠르고 정밀한 방법입니다.<br><br><strong class='font-semibold text-gray-700'>1. 원리:</strong><br>2D CAD 프로그램(일러스트레이터, 오토캐드 등)으로 부품의 외곽선을 그리고, 레이저 빔을 이용해 'MDF', '아크릴' 등 판재를 도면대로 자르는 기계입니다.<br><br><strong class='font-semibold text-gray-700'>2. 장점:</strong><br><ul class='list-disc list-inside space-y-1'><li><strong>극도의 정밀도:</strong> 0.1mm 이하의 오차로, 손으로는 불가능한 정밀한 기어 이빨 가공이 가능.</li><li><strong>속도와 반복성:</strong> 한번 도면을 완성하면, 몇 분 안에 수십 개의 동일한 부품을 찍어낼 수 있습니다.</li></ul><br><strong class='font-semibold text-blue-600 mt-2 block'>[실전 팁]</strong><br><ul class='list-disc list-inside space-y-1'><li><strong>'Kerf(커프)'값 적용:</strong> 레이저 빔도 '굵기'가 있습니다 (약 0.1~0.2mm). 축 구멍 등을 설계할 때 이 값을 고려해야 합니다.</li><li><strong>'Dog-bone(도그본)' 처리:</strong> 뾰족한 '안쪽 코너'를 완벽한 직각으로 조립하기 위해 코너에 작은 원형 홈을 파주는 기술입니다.</li></ul>">
+                    <h4 class="text-lg font-bold text-blue-700">기술 22: 레이저 커팅 (2D)</h4>
+                    <p class="text-sm text-gray-600">프레임, 기어, 캠 등 '판재형' 부품 제작에 가장 정밀합니다. 'Kerf(빔 굵기)' 값을 고려해야 합니다.</p>
+                </div>
+                <div class="automata-card" data-category="fab"
+                     data-modal-body="레이저 커터가 '평면'의 왕이라면, 3D 프린터는 '입체(3D)' 형상의 왕입니다.<br><br><strong class'font-semibold text-gray-700'>1. 원리 (FDM 방식):</strong><br>3D 모델 데이터를 '슬라이서' 프로그램이 수백 개의 얇은 '수평 단면'으로 나누고, 프린터가 플라스틱 필라멘트를 녹여 이 단면을 한 층씩 '쌓아 올려' 실물을 만들어냅니다.<br><br><strong class='font-semibold text-gray-700'>2. 장점:</strong><br><ul class='list-disc list-inside space-y-1'><li><strong>형상의 자유도:</strong> [기술 15: 스네일 캠]의 절벽, [기술 10: 웜기어]의 나선 등 2D로 불가능한 3차원 형상 제작 가능합니다.</li><li><strong>커스터마이징:</strong> 오토마타의 '인형', '동물', '장식물' 등 예술적 표현에 탁월합니다.</li></ul><br><strong class='font-semibold text-blue-600 mt-2 block'>[실전 팁]</strong><br><ul class='list-disc list-inside space-y-1'><li><strong>출력 방향(Orientation) 고려:</strong> '쌓아 올린' 결(Layer) 방향으로는 강하지만, 결과 결 사이는 약합니다. 힘을 받는 부품은 눕혀서 출력하는 등 방향을 고려해야 튼튼합니다.</li><li><strong>서포트(Support) 최소화:</strong> 공중에 떠 있는 부분은 '지지대'가 필요합니다. 설계를 변경하거나 방향을 조절해 서포트를 최소화하는 것이 좋습니다.</li></ul>">
+                    <h4 class="text-lg font-bold text-blue-700">기술 23: 3D 프린팅 (3D)</h4>
+                    <p class="text-sm text-gray-600">웜기어, 스네일 캠의 절벽 등 복잡한 '입체' 형상 제작에 필수입니다. '출력 방향'이 부품 강도를 결정합니다.</p>
+                </div>
+                <div class="automata-card" data-category="fab"
+                     data-modal-body="디지털 기계가 완벽할 것 같지만, 현실은 그렇지 않습니다. 결국 마무리는 '사람의 손'이 해야 합니다.<br><br><strong class='font-semibold text-gray-700'>1. 수공구(줄, 사포, 드릴)의 역할 (Post-processing):</strong><br><ul class='list-disc list-inside space-y-1'><li><strong>'Fit' 맞추기:</strong> 3D 프린터로 3mm 구멍을 뚫어도 수축 때문에 2.9mm로 출력될 수 있습니다. 이때 '3mm 드릴 비트'로 구멍을 다시 뚫어(Reaming) 축이 부드럽게 들어가도록 맞춰야 합니다.</li><li><strong>'Finish' 다듬기:</strong> 레이저 커팅의 그을음이나 3D 프린터의 거친 표면은 '사포(Sandpaper)'로 다듬어야 마찰이 줄어듭니다.</li></ul><br><strong class='font-semibold text-gray-700'>2. 3D 펜의 활용 (Detailing):</strong><br><ul class='list-disc list-inside space-y-1'><li><strong>'땜질 (Welding)':</strong> 3D 프린팅 부품의 이음새를 3D 펜으로 녹여 붙이면 매우 튼튼하게 결합됩니다.</li><li><strong>'갭 필러(Gap Filler)':</strong> 잘못 설계되거나 수축으로 생긴 '틈새'를 3D 펜으로 메울 수 있습니다.</li><li><strong>미적 표현:</strong> 인형의 '머리카락', 나무의 '가지' 등 유기적인 디테일을 추가할 때 유용합니다.</li></ul>">
+                    <h4 class="text-lg font-bold text-blue-700">기술 24: 수공구/3D펜</h4>
+                    <p class="text-sm text-gray-600">최종 마무리는 '손'이 합니다. '줄/사포'로 공차를 맞추고, '3D펜'으로 틈새를 메우거나 디테일을 추가합니다.</p>
+                </div>
+                <div class="automata-card" data-category="debug"
+                     data-modal-body="조립이 안 되거나, 움직임이 빽빽한 첫 번째 이유입니다.<br><br><strong class='font-semibold text-gray-700'>1. 간섭 (Interference) - &quot;부품이 서로 부딪힌다&quot;</strong><br>현상: 특정 각도에서 '링크'가 '프레임'에 부딪힌다.<br>원인: 1순위: 설계 오류, 2순위: 조립 오류 (부품을 뒤집어 끼움), 3순위: 재료의 휨.<br>해결: '줄(File)' 또는 '사포'로 부딪히는 부분을 '조금씩' 갈아내거나, '와셔(Washer)'를 끼워 '간격'을 조정합니다.<br><br><strong class'font-semibold text-gray-700'>2. 공차 (Tolerance) - &quot;틈새 관리&quot;</strong><br>움직이는 부품들 사이의 '미세한 틈'을 말합니다.<br><ul class='list-disc list-inside space-y-1'><li><strong>틈새가 너무 좁다 (Press Fit):</strong> 축이 구멍에 안 들어갑니다. '드릴 비트'나 '원형 줄'로 구멍을 살짝 넓혀 '부드럽게 회전하되 흔들리지는 않는' 상태(Clearance Fit)를 찾아야 합니다.</li><li><strong>틈새가 너무 넓다 (Wobble):</strong> 축이 구멍 안에서 '덜렁거립니다'. '백래시(Backlash, 기술 27)'가 심해집니다.</li></ul><br><strong class='font-semibold text-blue-600 mt-2 block'>[주요 팁]</strong> '간섭'은 눈에 보이지만, '공차'는 감각으로 찾아야 합니다. 손으로 돌려보며 '빽빽하지도, 헐렁하지도 않은' 그 최적의 지점을 찾는 것이 조립의 핵심입니다.">
+                    <h4 class="text-lg font-bold text-blue-700">기술 25: 간섭/공차 관리</h4>
+                    <p class="text-sm text-gray-600">'간섭(부딪힘)'은 없는지, 축과 구멍의 '공차(틈새)'가 너무 빡빡하거나 헐렁하지 않은지 손으로 확인합니다.</p>
+                </div>
+                <div class="automata-card" data-category="debug"
+                     data-modal-body="오토마타의 '심장(동력원)'이 약할수록 '마찰'은 치명적인 적이 됩니다. 핸드 크랭크가 뻑뻑해서 안 돌아가거나, 모터가 힘이 달려 멈추는 주범입니다.<br><br><strong class='font-semibold text-gray-700'>1. 표면 처리 (Surface Finishing):</strong><br>마찰이 일어나는 '모든' 표면을 매끄럽게 만듭니다. 3D 프린팅 부품의 '레이어 결'은 마찰의 주범. 특히 '캠 프로파일'과 '기어 이빨'은 반드시 고운 사포(400방 이상)로 매끈하게 다듬어야 합니다.<br><br><strong class='font-semibold text-gray-700'>2. 윤활 (Lubrication):</strong><br>&quot;윤활은 선택이 아닌 필수다.&quot;<br><ul class='list-disc list-inside space-y-1'><li><strong>건식 윤활 (Dry Lube):</strong> (추천) 양초(Paraffin Wax), 흑연 가루, PTFE 스프레이. 끈적이지 않아 먼지가 안 붙습니다. '목재-목재', '플라스틱-플라스틱' 마찰 부위에 적합합니다.</li><li><strong>습식 윤활 (Wet Lube):</strong> 구리스, 오일. '금속-금속' 마찰 부위 (예: 볼 베어링)에 '극소량'만 사용합니다. 목재/플라스틱에 쓰면 먼지가 엉겨 붙어 오히려 '잼'의 원인이 될 수 있으니 피해야 합니다.</li></ul><br><strong class='font-semibold text-blue-600 mt-2 block'>[실전 팁]</strong> '양초'를 캠 프로파일이나 기어 이빨에 '문지르기만' 해도 효과가 엄청납니다.">
+                    <h4 class="text-lg font-bold text-blue-700">기술 26: 마찰과 윤활</h4>
+                    <p class="text-sm text-gray-600">움직임의 품질은 '사포질'이 결정합니다. 3D 프린터의 '레이어 결'을 제거하십시오. 목재/플라스틱에는 '건식 윤활(양초, 흑연)'이 원칙입니다.</p>
+                </div>
+                <div class="automata-card" data-category="debug"
+                     data-modal-body="설계도대로 만들었는데 왜 안 움직이지? 이 질문에 대한 답을 찾는 것이 '디버깅'입니다.<br><br><strong class='font-semibold text-gray-700'>1. 잼 (Jamming) - &quot;걸림 현상&quot;</strong><br>핸드 크랭크가 특정 구간에서 '턱' 걸리는 현상.<br><strong>원인 분석 (체계적 접근):</strong><br>1. '강제로' 돌리지 말 것. (부품 파손 위험)<br>2. '역방향'으로 돌려 위치 확인.<br>3. '동력원 분리' 후, 메인 축부터 '단계적 분해'를 하며 범인을 찾습니다. (메인 축 → 1단 기어 → 2단 기어 → 캠... 순서로 하나씩 연결하며 테스트)<br><strong>주요 용의자:</strong> 캠 프로파일이 너무 급격함(설계 오류), 기어 축의 '평행도' 불량.<br><br><strong class='font-semibold text-gray-700'>2. 백래시 (Backlash) - &quot;유격 또는 헐렁함&quot;</strong><br>핸들을 '까딱' 움직일 때, 최종 인형은 움직이지 않는 '헛도는 구간'입니다.<br><strong>원인:</strong> 모든 움직이는 '틈새(공차)'가 누적되어 발생합니다.<br><strong>해결:</strong> '0'으로 만들 수 없으며, 어느 정도 허용해야 합니다. (너무 없으면 마찰로 멈춤) '잼'은 100% 잡아야 하지만, '백래시'는 타협할 수 있습니다.">
+                    <h4 class="text-lg font-bold text-blue-700">기술 27: 잼/백래시</h4>
+                    <p class="text-sm text-gray-600">'걸림(Jamming)'은 100% 잡아야 합니다. 강제로 돌리지 말고 원인을 찾으십시오. '헐렁함(Backlash)'은 어느 정도 타협이 필요합니다.</p>
+                </div>
+                <div class="automata-card" data-category="finish"
+                     data-modal-body="하나의 움직임이 아니라, 여러 개의 움직임이 '순서대로' 또는 '동시에' 일어나게 하여 하나의 '이야기(Story)'를 만드는 기술입니다.<br><br><strong class='font-semibold text-gray-700'>1. 동시 연동 (Parallel Linkage):</strong><br>하나의 '메인 구동축'에서 여러 개의 캠, 기어, 링크가 동시에 구동되는 방식. (가장 일반적)<br><strong>핵심 기술: '캠의 위상(Phase) 조절'.</strong><br>메인 축에 캠을 고정할 때, 그 '각도'를 어떻게 설정하느냐에 따라 움직임의 '타이밍'이 결정됩니다. A캠 최고점이 12시일 때 B캠 최고점을 6시에 고정하면, A와 B는 '정반대' 타이밍으로 움직이게 됩니다.<br><br><strong class='font-semibold text-gray-700'>2. 순차 연동 (Sequential Linkage):</strong><br>A의 움직임이 '끝나야만' B가 움직이는, 더 복잡한 시퀀스입니다. [기술 15: 스네일 캠]을 활용하거나 [기술 29: 스위치]를 연계하여 구현할 수 있습니다.<br><br><strong class='font-semibold text-blue-600 mt-2 block'>[주요 팁]</strong> 오토마타의 '재미'는 이 '시퀀스'에서 나옵니다. '준비-기대-절정-마무리'의 이야기 구조를 기계적으로 구현해 보는 것이 좋습니다.">
+                    <h4 class="text-lg font-bold text-blue-700">기술 28: 다중 매커니즘 연동</h4>
+                    <p class="text-sm text-gray-600">여러 움직임을 '동시'에 또는 '순차적'으로 작동시킵니다. 캠을 축에 고정하는 '각도(위상)'가 타이밍(시퀀스)을 결정합니다.</p>
+                </div>
+                <div class="automata-card" data-category="finish"
+                     data-modal-body="7차시에서 배운 '스위치'를 응용하여, 오토마타가 '반응'하게 만드는 기술입니다.<br><br><strong class='font-semibold text-gray-700'>1. 입력(Input)으로서의 스위치:</strong><br>관객이 '푸시 버튼'을 눌러야만 모터가 작동하게 설계합니다. 또는 특정 '서랍'을 열면, 그 안의 '리미트 스위치'가 눌려 작동하는 등 숨겨진 재미를 줄 수 있습니다.<br><br><strong class='font-semibold text-gray-700'>2. 내부 장치로서의 스위치 (시퀀스 제어):</strong><br>'리미트 스위치'는 기계 부품이 특정 위치에 도달했을 때 '눌리는' 스위치입니다.<br><ul class='list-disc list-inside space-y-1'><li><strong>예시 1: 자동 정지:</strong> 오토마타가 1바퀴 회전하여 원래 위치로 돌아오면, '돌기(Cam Lobe)'가 리미트 스위치를 '눌러' 모터 전원을 스스로 차단하게 만듭니다. (1회만 작동하고 멈춤)</li><li><strong>예시 2: 다중 모터 제어:</strong> A모터가 캠을 돌림 → 캠 돌기가 1번 스위치를 누름 → 1번 스위치가 B모터에 전원을 공급 → B모터가 작동...</li></ul><br><strong class='font-semibold text-blue-600 mt-2 block'>[주요 팁]</strong> 기계식 오토마타에서는 이 '리미트 스위치' 하나만 잘 써도 매우 지능적인 움직임을 구현할 수 있습니다. '기계적 논리 회로'를 만드는 셈입니다.">
+                    <h4 class="text-lg font-bold text-blue-700">기술 29: 센서(스위치) 연동</h4>
+                    <p class="text-sm text-gray-600">'리미트 스위치'를 이용해 '1회전 자동 정지' 같은 기계적 논리 회로를 구현하여 작품에 지능을 부여합니다.</p>
+                </div>
+                <div class="automata-card" data-category="finish"
+                     data-modal-body="기계 장치는 완성되었으니, 이제 '무대'를 꾸밀 차례입니다.<br><br><strong class='font-semibold text-gray-700'>1. '기계'를 드러낼 것인가, '이야기'를 숨길 것인가?</strong><br><ul class='list-disc list-inside space-y-1'><li><strong>'노출형' 디자인 (Exposed Mechanism):</strong> 기계 장치 자체의 움직임을 '주인공'으로 삼는 방식입니다. 부품 자체의 '색상 대비'나 '재료 대비'로 완성도를 높입니다.</li><li><strong>'은폐형' 디자인 (Concealed Mechanism):</strong> 기계 장치는 숨기고, 그 위에서 움직이는 '인형'이나 '배경'의 이야기에 집중하는 방식입니다. (대부분의 오토마타)</li></ul><br><strong class='font-semibold text-gray-700'>2. 도색 (Painting) 및 마감 (Finishing):</strong><br>재료의 질감을 가리고, '테마'를 부여하며, 작품을 보호합니다.<br><strong class'font-semibold text-gray-600'>목재 (MDF, 합판):</strong><br>1. 사포질 (필수) → 2. 젯소(Gesso) 또는 프라이머 (MDF에 필수) → 3. 아크릴 물감 도색 → 4. 바니시 (마감재) 코팅<br><strong class='font-semibold text-gray-600 mt-1 block'>3D 프린팅 (PLA):</strong><br>1. 사포질 (레이어 결 제거) → 2. 퍼티(Putty) 및 서페이서 (결 자국 메우기) → 3. 락카스프레이 또는 아크릴 도색<br><br><strong class='font-semibold text-blue-600 mt-2 block'>[주요 팁]</strong> '움직임'이 아무리 훌륭해도 '마감'이 지저분하면 작품의 가치가 떨어집니다. 사포질이 도색의 품질을 90% 결정한다는 것을 명심해야 합니다.">
+                    <h4 class="text-lg font-bold text-blue-700">기술 30: 도색 및 마감</h4>
+                    <p class="text-sm text-gray-600">MDF/목재는 물감을 흡수합니다. 도색 전 사포질과 '젯소(프라이머)' 하도 작업은 품질을 위해 절대 생략해선 안 됩니다.</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="motorView" class="view">
+            <!-- Motor View Content... -->
+            <h2 class="text-2xl font-bold mb-4">모터 제어 심화 과정</h2>
+            <p class="text-gray-600 mb-6">오토마타의 '심장'을 제어하는 전기/전자 기술입니다. 단순 On/Off부터 프로그래밍 제어까지 다룹니다.</p>
+
+            <nav id="motorNav" class="flex flex-wrap gap-2 mb-6 bg-gray-100 p-2 rounded-lg">
+                <button class="sub-nav-btn active" data-view="dcMotorView">DC 기어드 모터</button>
+                <button class="sub-nav-btn" data-view="servoMotorView">서보 모터</button>
+                <button class="sub-nav-btn" data-view="stepperMotorView">스텝 모터</button>
+            </nav>
+
+            <div id="dcMotorView" class="sub-view active">
+                <h3 class="text-xl font-bold mb-4">DC 기어드 모터: 기계식 제어</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="text-lg font-semibold mb-2">DPDT 스위치 (방향 전환)</h4>
+                        <p class="text-sm mb-4">6핀 DPDT 스위치의 'X자 결선'은 모터로 들어가는 전원의 (+)/(-) 극성을 뒤집어, 모터의 정/역 회전을 제어하는 핵심 기술입니다.</p>
+                        <div class="wiring-diagram">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="wire-label wire-plus">(+) 전원</span>
+                                <span class="wire-label wire-minus">(-) 전원</span>
+                            </div>
+                            <div class="flex justify-between items-center text-xs font-mono">
+                                <span class="text-red-600">X</span> <span>(위 1)</span>
+                                <span>(위 2)</span> <span class="text-blue-600">X</span>
+                            </div>
+                            <div class="flex justify-between items-center my-1">
+                                <div class="dpdt-pin"></div>
+                                <div class="dpdt-pin"></div>
+                            </div>
+                            <div class="flex justify-center items-center my-2">
+                                <div class="dpdt-pin"></div>
+                                <span class="mx-4 text-sm">→ (가운데 핀) →</span>
+                                <div class="dpdt-pin"></div>
+                            </div>
+                            <div class="flex justify-between items-center my-1">
+                                <div class="dpdt-pin"></div>
+                                <div class="dpdt-pin"></div>
+                            </div>
+                            <div class="flex justify-between items-center text-xs font-mono">
+                                <span class="text-blue-600">X</span> <span>(아래 1)</span>
+                                <span>(아래 2)</span> <span class="text-red-600">X</span>
+                            </div>
+                            <div class="flex justify-center items-center mt-2">
+                                <span class="wire-label wire-motor">모터 (M)</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="text-lg font-semibold mb-2">1회전 자동 정지</h4>
+                        <p class="text-sm mb-4">'푸시 버튼'과 '리미트 스위치', '캠 돌기'를 이용한 '자기유지 회로'입니다. 버튼(NO)으로 시동하고, NC 우회로로 1회전을 유지하다, 캠 돌기가 다시 스위치를 눌러 NC를 끊어 정지시킵니다.</p>
+                        <div class="wiring-diagram">
+                            <p class="text-sm font-semibold">작동 순서:</p>
+                            <ol class="list-decimal list-inside text-sm">
+                                <li>(정지) 캠이 스위치 누름 (NC 끊김)</li>
+                                <li class="text-blue-600">(시동) 관객이 버튼 누름 → NO로 모터 시동</li>
+                                <li>(작동) 캠이 스위치에서 떨어짐 (NC 연결)</li>
+                                <li class="text-green-600">(유지) 버튼 떼도, COM→NC '우회로'로 계속 돔</li>
+                                <li class="text-red-600">(정지) 1회전 후 캠이 스위치 다시 누름 → NC 끊김</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="servoMotorView" class="sub-view">
+                <h3 class="text-xl font-bold mb-4">서보 모터: 절대 각도 제어</h3>
+                <p class="text-sm mb-4">서보 모터는 'DC모터+기어+센서+회로'의 집합체! 단순 전원이 아닌, '아두이노' 등 MCU의 '데이터 신호'로 제어해야 합니다. `myServo.write(각도)` 명령으로 0~180° 사이의 특정 각도로 이동하고 그 위치를 '유지(Hold)'합니다.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="text-lg font-semibold mb-2">3선 결선</h4>
+                        <ul class="list-disc list-inside text-sm">
+                            <li><span class="font-bold text-gray-700">갈색/검은색:</span> GND (-) → 아두이노 GND</li>
+                            <li><span class="font-bold text-red-600">빨간색:</span> VCC (+) → 아두이노 5V</li>
+                            <li><span class="font-bold text-orange-500">주황색/흰색:</span> Signal → 아두이노 PWM(~) 핀</li>
+                        </ul>
+                        <p class="text-sm mt-4 font-bold text-red-600">[경고] '지터링'(떨림) 현상:</p>
+                        <p class="text-sm">서보가 '부르르' 떠는 것은 99% '전원 부족' 때문입니다. 아두이노 5V는 약합니다. 서보가 2개 이상이거나 크면, <strong>'외부 전원'</strong>을 서보에 연결하고 <strong>'공통 접지'</strong>(외부전원 GND와 아두이노 GND 연결)를 해야 합니다.</p>
+                    </div>
+                    <div>
+                        <h4 class="text-lg font-semibold mb-2">아두이노 기초 코드</h4>
+                        <pre class="bg-gray-800 text-white p-4 rounded-lg text-sm overflow-x-auto">
+<code>#include &lt;Servo.h&gt;
+
+Servo myServo; <span class="text-gray-400">// 서보 객체 생성</span>
+
+void setup() {
+  myServo.attach(9); <span class="text-gray-400">// 9번 핀에 신호선 연결</span>
+}
+
+void loop() {
+  myServo.write(0);   <span class="text-gray-400">// 0도로 이동</span>
+  delay(1000);
+  myServo.write(90);  <span class="text-gray-400">// 90도로 이동</span>
+  delay(1000);
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <div id="stepperMotorView" class="sub-view">
+                <h3 class="text-xl font-bold mb-4">스텝 모터: 정밀 스텝 제어</h3>
+                <p class="text-sm mb-4">스텝 모터는 '펄스' 신호 1개당 '1.8°'처럼 정해진 각도(스텝)만큼 '끊어서' 회전합니다. 360° 이상 연속 회전이 가능하며 '정확한 거리' 제어에 쓰입니다. (피드백 센서 없음)</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="text-lg font-semibold mb-2">'모터 드라이버' 필수</h4>
+                        <p class="text-sm mb-2">스텝 모터는 아두이노로 직접 제어할 수 없습니다.</p>
+                        <ul class="list-disc list-inside text-sm">
+                            <li><strong>1. 전류(A) 문제:</strong> 아두이노 핀이 감당 못하는 큰 전류 필요.</li>
+                            <li><strong>2. 제어(Sequence) 문제:</strong> 내부 코일을 복잡한 순서로 On/Off 해야 함.</li>
+                        </ul>
+                        <p class="text-sm mt-2">'드라이버'는 아두이노의 '약한 신호'를 받아, <strong>'외부 전원'</strong>의 '강한 힘'으로 모터를 대신 제어하는 '중간 관리자'입니다.</p>
+                        <p class="text-sm mt-4 font-bold text-red-600">[경고] '탈조'(Stall) 현상:</p>
+                        <p class="text-sm">모터가 '드르륵' 소리만 내고 스텝을 놓치는 현상입니다. '피드백'이 없어 아두이노는 탈조를 모릅니다. '속도(RPM)를 낮추거나' '기계적 마찰'을 줄여야 합니다.</p>
+                    </div>
+                    <div>
+                        <h4 class="text-lg font-semibold mb-2">아두이노 기초 코드 (28BYJ)</h4>
+                        <pre class="bg-gray-800 text-white p-4 rounded-lg text-sm overflow-x-auto">
+<code>#include &lt;Stepper.h&gt;
+
+<span class="text-gray-400">// 1회전 스텝 수 (기어비 포함)</span>
+const int stepsPerRev = 2048;
+<span class="text-gray-400">// 핀 순서 (IN1, IN3, IN2, IN4)</span>
+Stepper myStepper(stepsPerRev, 8, 10, 9, 11);
+
+void setup() {
+  myStepper.setSpeed(15); <span class="text-gray-400">// RPM (17 초과 시 탈조)</span>
+}
+
+void loop() {
+  myStepper.step(stepsPerRev); <span class="text-gray-400">// 정방향 1회전</span>
+  delay(1000);
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="checklistView" class="view">
+            <!-- Checklist View Content... -->
+            <h2 class="text-2xl font-bold mb-4">실전 체크리스트</h2>
+        
+            <nav id="checklistNav" class="flex flex-wrap gap-2 mb-6 bg-gray-100 p-2 rounded-lg">
+                <button class="sub-nav-btn active" data-view="safetyChecklistView">안전보건 (필수!)</button>
+                <button class="sub-nav-btn" data-view="buildChecklistView">제작 (1-30선)</button>
+                <button class="sub-nav-btn" data-view="motorChecklistView">모터 (심화)</button>
+            </nav>
+
+            <div id="safetyChecklistView" class="sub-view active">
+                <h3 class="text-xl font-bold text-red-600 mb-4">1. 안전보건 체크리스트 (필수 숙지)</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-gray-50 p-4 rounded-lg border">
+                        <h4 class="text-lg font-semibold mb-2">전기 안전 (화재/감전)</h4>
+                        <ul class="list-disc list-inside text-sm space-y-2">
+                            <li>'납땜 인두기'는 '전용 거치대'에 두었는가? (화재 위험)</li>
+                            <li>배선 작업은 '전원이 완전히 분리된' 상태에서 진행하는가?</li>
+                            <li>모든 납땜 부위는 '수축 튜브'로 마감하여 '합선'을 방지했는가?</li>
+                            <li>모터가 '과열'되면 즉시 전원을 차단했는가? (스톨/합선 신호)</li>
+                        </ul>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg border">
+                        <h4 class="text-lg font-semibold mb-2">기계/도구 안전 (부상 방지)</h4>
+                        <ul class="list-disc list-inside text-sm space-y-2">
+                            <li>드릴, 사포질, 커터칼 작업 시 '보안경'을 착용했는가?</li>
+                            <li>드릴 작업 시 '장갑'을 착용하지 않았는가? (말려 들어감!)</li>
+                            <li>가공물은 '클램프'로 고정하고, 손으로 잡고 작업하지 않는가?</li>
+                            <li>회전체(기어, 모터)에 손가락이나 머리카락이 접근하지 않는가?</li>
+                        </ul>
+                    </div>
+                    <div class="md:col-span-2 bg-gray-50 p-4 rounded-lg border">
+                        <h4 class="text-lg font-semibold mb-2">화학/환경 안전</h4>
+                        <ul class="list-disc list-inside text-sm space-y-2">
+                            <li>납땜, 도색, 본드 작업 시 '환기'를 하고 있는가?</li>
+                            <li>MDF 사포질 시 '방진 마스크(KF94 이상)'를 착용했는가? (분진)</li>
+                            <li>작업 공간 바닥이 정리되어 있어 넘어질 위험은 없는가?</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div id="buildChecklistView" class="sub-view">
+                <h3 class="text-xl font-bold text-blue-700 mb-4">2. 오토마타 제작 체크리스트 (1-30선 기반)</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-gray-50 p-4 rounded-lg border">
+                        <h4 class="text-lg font-semibold mb-2">설계 및 제작</h4>
+                        <ul class="list-disc list-inside text-sm space-y-2">
+                            <li>'이야기'가 '매커니즘'보다 먼저인가?</li>
+                            <li>모든 축 구멍은 '드릴 프레스'로 '직각'을 확보했는가?</li>
+                            <li>기어의 '중심 거리'는 정밀하게 계산되었는가?</li>
+                            <li>주 구동축에 '볼 베어링'을 사용했는가?</li>
+                        </ul>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg border">
+                        <h4 class="text-lg font-semibold mb-2">조립 및 디버깅</h4>
+                        <ul class="list-disc list-inside text-sm space-y-2">
+                            <li>부품 간 '간섭(Interference)'은 없는가?</li>
+                            <li>축과 구멍의 '공차'는 빡빡하지도 헐렁하지도 않은가?</li>
+                            <li>마찰면에 '건식 윤활(양초)'을 적용했는가?</li>
+                            <li>'걸림(Jamming)' 발생 시, 강제로 돌리지 않고 원인을 찾았는가?</li>
+                            <li>캠 종동자는 '스프링/고무줄'로 항상 밀착되어 있는가?</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div id="motorChecklistView" class="sub-view">
+                <h3 class="text-xl font-bold text-blue-700 mb-4">3. 모터 구동 체크리스트 (심화)</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-gray-50 p-4 rounded-lg border">
+                        <h4 class="text-lg font-semibold mb-2">기계 및 배선 (3대 치명적 오류)</h4>
+                        <ul class="list-disc list-inside text-sm space-y-2">
+                            <li class="font-bold text-red-600">'축 정렬'은 '직각자'로 완벽히 확인했는가? (스톨/탈조의 주범)</li>
+                            <li>모터는 '나사'와 '브라켓'으로 견고히 고정했는가? (글루건 X)</li>
+                            <li>전원 연결 전, '손'으로 돌려 마찰/걸림이 없는지 확인했는가?</li>
+                            <li>'납땜' 후 '수축 튜브'로 '합선'을 완벽히 방지했는가?</li>
+                        </ul>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg border">
+                        <h4 class="text-lg font-semibold mb-2">전원 (3대 치명적 오류)</h4>
+                        <ul class="list-disc list-inside text-sm space-y-2">
+                            <li class="font-bold text-red-600">모터의 '규격 전압(V)'과 어댑터 전압이 일치하는가?</li>
+                            <li>어댑터의 '전류(A)'가 모터 요구량보다 충분히 높은가?</li>
+                            <li class="font-bold text-red-600">(Servo/Stepper) '외부 전원'을 사용하고, 아두이노와 '공통 접지(GND)'를 연결했는가? (지터링/오작동의 주범)</li>
+                            <li>(Servo) '지터링'(떨림)이 발생하는가? (→ 99% 전원 부족)</li>
+                            <li>(Stepper) '탈조'(드르륵)가 발생하는가? (→ 속도 / 마찰 / 전원 점검)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal Structure -->
+    <div id="automataModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-60 hidden transition-opacity duration-300">
+        <div id="modalContent" class="bg-white rounded-xl shadow-2xl w-full max-w-2xl p-6 md:p-8">
+            <div class="flex justify-between items-center pb-3 border-b border-gray-200">
+                <h3 id="modalTitle" class="text-2xl font-bold text-blue-700">모달 제목</h3>
+                <button id="closeModalBtn" class="text-gray-400 hover:text-gray-700 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="mt-4">
+                <p id="modalBody" class="text-base text-gray-700 leading-relaxed">모달 본문 내용이 여기에 들어갑니다.</p>
+            </div>
+        </div>
+    </div>
+    <!-- END: Modal Structure -->
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            // --- Refactored Styling Logic ---
+            
+            // Style constants
+            const mainActiveClasses = ['bg-white', 'text-blue-700'];
+            const mainInactiveClasses = ['text-gray-600', 'bg-gray-300'];
+            
+            const subActiveClasses = ['bg-blue-700', 'text-white', 'border-transparent'];
+            const subInactiveClasses = ['bg-white', 'border', 'border-gray-300', 'text-gray-700'];
+
+            /**
+             * Helper function to apply initial styles to a set of buttons on page load.
+             */
+            function initializeStyles(buttonsNodeList, activeClasses, inactiveClasses) {
+                buttonsNodeList.forEach(btn => {
+                    if (btn.classList.contains('active')) {
+                        btn.classList.add(...activeClasses);
+                        btn.classList.remove(...inactiveClasses);
+                    } else {
+                        btn.classList.add(...inactiveClasses);
+                        btn.classList.remove(...activeClasses);
+                    }
+                });
+            }
+
+            /**
+             * Helper function to update styles for a set of buttons when one is clicked.
+             */
+            function updateButtonStyles(buttonsNodeList, clickedBtn, activeClasses, inactiveClasses) {
+                buttonsNodeList.forEach(btn => {
+                    btn.classList.remove('active', ...activeClasses);
+                    btn.classList.add(...inactiveClasses);
+                });
+                clickedBtn.classList.add('active', ...activeClasses);
+                clickedBtn.classList.remove(...inactiveClasses);
+            }
+
+            // --- 1. Main Nav ---
+            const mainNav = document.getElementById('mainNav');
+            const mainViews = document.querySelectorAll('.view');
+            const mainNavBtns = mainNav.querySelectorAll('.main-nav-btn');
+
+            initializeStyles(mainNavBtns, mainActiveClasses, mainInactiveClasses);
+
+            mainNav.addEventListener('click', (e) => {
+                const button = e.target.closest('button.main-nav-btn');
+                if (button) {
+                    const viewId = button.getAttribute('data-view');
+                    updateButtonStyles(mainNavBtns, button, mainActiveClasses, mainInactiveClasses);
+                    mainViews.forEach(view => {
+                        view.id === viewId ? view.classList.add('active') : view.classList.remove('active');
+                    });
+                }
+            });
+
+            // --- 2. Sub Nav Function ---
+            function setupSubNav(navId, viewContainerId) {
+                const nav = document.getElementById(navId);
+                const views = document.getElementById(viewContainerId).querySelectorAll('.sub-view');
+                const btns = nav.querySelectorAll('.sub-nav-btn');
+
+                initializeStyles(btns, subActiveClasses, subInactiveClasses);
+
+                nav.addEventListener('click', (e) => {
+                    const button = e.target.closest('button.sub-nav-btn');
+                    if (button) {
+                        const viewId = button.getAttribute('data-view');
+                        updateButtonStyles(btns, button, subActiveClasses, subInactiveClasses);
+                        views.forEach(view => {
+                            view.id === viewId ? view.classList.add('active') : view.classList.remove('active');
+                        });
+                    }
+                });
+            }
+
+            setupSubNav('motorNav', 'motorView');
+            setupSubNav('checklistNav', 'checklistView');
+
+            // --- 3. Filter Nav ---
+            const filterNav = document.getElementById('automataFilter');
+            const automataCards = document.getElementById('automataGrid').querySelectorAll('.automata-card');
+            const filterBtns = filterNav.querySelectorAll('.filter-btn');
+
+            initializeStyles(filterBtns, subActiveClasses, subInactiveClasses); // Uses same styles as sub-nav
+
+            filterNav.addEventListener('click', (e) => {
+                const button = e.target.closest('button.filter-btn');
+                if (button) {
+                    const category = button.getAttribute('data-category');
+                    updateButtonStyles(filterBtns, button, subActiveClasses, subInactiveClasses);
+
+                    automataCards.forEach(card => {
+                        if (category === 'all' || card.getAttribute('data-category') === category) {
+                            card.style.display = 'block';
+                        } else {
+                            card.style.display = 'none';
+                        }
+                    });
+                }
+            });
+
+            // --- 4. Modal Logic ---
+            const automataGrid = document.getElementById('automataGrid');
+            const modal = document.getElementById('automataModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalBody = document.getElementById('modalBody');
+            const closeModalBtn = document.getElementById('closeModalBtn');
+
+            function openModal(title, body) {
+                modalTitle.textContent = title;
+                modalBody.innerHTML = body; // Use .innerHTML to render HTML from data-attribute
+                modal.classList.remove('hidden');
+            }
+
+            function closeModal() {
+                modal.classList.add('hidden');
+            }
+
+            automataGrid.addEventListener('click', (e) => {
+                const card = e.target.closest('.automata-card');
+                if (card) {
+                    const title = card.querySelector('h4').textContent;
+                    const body = card.getAttribute('data-modal-body');
+                    openModal(title, body);
+                }
+            });
+
+            closeModalBtn.addEventListener('click', closeModal);
+            modal.addEventListener('click', (e) => {
+                if (e.target.id === 'automataModal') { // Click on overlay
+                    closeModal();
+                }
+            });
+
+            // --- 5. Chart.js ---
+            function createMotorRadarChart() {
+                const ctx = document.getElementById('motorRadarChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'radar',
+                    data: {
+                        labels: [
+                            '제어 정밀도 (Precision)', 
+                            '저비용 (10=Cheap)', 
+                            '제어 복잡도 (1=Easy)', 
+                            '위치 유지력 (Hold)', 
+                            '회전 범위 (10=Full)'
+                        ],
+                        datasets: [
+                            {
+                                label: 'DC 기어드 모터',
+                                data: [2, 9, 1, 1, 10],
+                                backgroundColor: 'rgba(52, 152, 219, 0.2)',
+                                borderColor: 'rgba(52, 152, 219, 1)',
+                                borderWidth: 2
+                            },
+                            {
+                                label: '서보 모터',
+                                data: [9, 5, 7, 9, 2],
+                                backgroundColor: 'rgba(46, 204, 113, 0.2)',
+                                borderColor: 'rgba(46, 204, 113, 1)',
+                                borderWidth: 2
+                            },
+                            {
+                                label: '스텝 모터',
+                                data: [8, 4, 9, 3, 10],
+                                backgroundColor: 'rgba(243, 156, 18, 0.2)',
+                                borderColor: 'rgba(243, 156, 18, 1)',
+                                borderWidth: 2
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            r: {
+                                beginAtZero: true,
+                                max: 10,
+                                ticks: {
+                                    stepSize: 2,
+                                    backdropColor: 'rgba(255, 255, 255, 0.75)',
+                                    color: '#444'
+                                },
+                                pointLabels: {
+                                    font: {
+                                        size: 14,
+                                        weight: '500'
+                                    },
+                                    color: '#2c3e50'
+                                }
+                            }
+                        },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    title: function(tooltipItems) {
+                                        const item = tooltipItems[0];
+                                        let label = item.chart.data.labels[item.dataIndex];
+                                        return Array.isArray(label) ? label.join(' ') : label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            createMotorRadarChart();
+        });
+    </script>
+</body>
+</html>
